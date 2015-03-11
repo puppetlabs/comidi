@@ -1,5 +1,7 @@
 # pl-bidi
 
+[![Build Status](https://magnum.travis-ci.com/puppetlabs/pl-bidi.svg?token=ApBsaKK1zdeqHwzhXLzw&branch=master)](https://magnum.travis-ci.com/puppetlabs/pl-bidi)
+
 A Clojure library designed to ... well, that part is up to you.
 
 ## Usage
