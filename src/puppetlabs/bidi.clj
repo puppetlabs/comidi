@@ -5,26 +5,19 @@
             [compojure.core :as compojure]
             [compojure.response :as compojure-response]
             [ring.util.response :as ring-response]
-            [schema.core :as schema])
+            [schema.core :as schema]
+            [puppetlabs.kitchensink.core :as ks])
   (:import (java.util.regex Pattern)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schemas
-
-;; NOTE: This function should be added to kitchensink soon; we
-;; can remove it from here once that's in a release.
-(defn zipper?
-  "Checks to see if the object has zip/make-node metadata on it (confirming it
-to be a zipper."
-  [obj]
-  (contains? (meta obj) :zip/make-node))
 
 (defn pattern?
   [x]
   (instance? Pattern x))
 
 (def Zipper
-  (schema/pred zipper?))
+  (schema/pred ks/zipper?))
 
 (def http-methods
   #{:any :get :post :put :delete :head})
@@ -172,7 +165,7 @@ to be a zipper."
 
 (schema/defn ^:always-validate
   make-handler :- (schema/pred fn?)
-  "Create a Ring handler from the route definition data  structure. (This code
+  "Create a Ring handler from the route definition data structure. (This code
   is largely borrowed from bidi core.)  Arguments:
 
   - route-meta: metadata about the routes; allows us to look up the route info
@@ -189,7 +182,6 @@ to be a zipper."
   [route-meta :- RouteMetadata
    routes :- BidiRoute
    handler-fn :- (schema/pred fn?)]
-  (assert routes "Cannot create a Ring handler with a nil Route(s) parameter")
   (let [compiled-routes (bidi/compile-route routes)]
     (fn [{:keys [uri path-info] :as req}]
       (let [path (or path-info uri)
@@ -220,13 +212,13 @@ to be a zipper."
 
 (schema/defn ^:always-validate
   context :- BidiRoute
-  [url-prefix :- BidiPattern
-   & routes :- [BidiRoute]]
   "Combines multiple bidi routes together into a single data structure, but nests
   them all under the given url-prefix.  This is similar to compojure's `context`
   macro, but does not accept a binding form.  You can still destructure variables
   by passing a bidi pattern for `url-prefix`, and the variables will be available
   to all nested routes."
+  [url-prefix :- BidiPattern
+   & routes :- [BidiRoute]]
   [url-prefix (vec routes)])
 
 (schema/defn ^:always-validate
@@ -249,10 +241,10 @@ to be a zipper."
 (schema/defn ^:always-validate
   context-handler :- (schema/pred fn?)
   "Convenience function that effectively composes `context` and `routes->handler`."
-  ([url-prefix :- BidiPattern
-    & routes :- [BidiRoute]]
-    (routes->handler
-      (apply context url-prefix routes))))
+  [url-prefix :- BidiPattern
+   & routes :- [BidiRoute]]
+  (routes->handler
+    (apply context url-prefix routes)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

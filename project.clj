@@ -4,7 +4,5 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [bidi "1.18.8-SNAPSHOT"]
                  [compojure "1.3.2"]
-                 [prismatic/schema "0.2.2"]]
-
-  :profiles {:dev {:dependencies [[spyscope "0.1.4" :exclusions [clj-time]]]
-                   :injections [(require 'spyscope.core)]}})
+                 [prismatic/schema "0.2.2"]
+                 [puppetlabs/kitchensink "1.1.0"]])
