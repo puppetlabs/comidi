@@ -1,8 +1,8 @@
-(ns puppetlabs.bidi-test
+(ns puppetlabs.comidi-test
   (require [clojure.test :refer :all]
-           [puppetlabs.bidi :as pl-bidi]
+           [puppetlabs.comidi :as comidi]
            [schema.test :as schema-test]
-           [puppetlabs.bidi :refer :all]
+           [puppetlabs.comidi :refer :all]
            [schema.core :as schema]
            [clojure.zip :as zip]))
 
@@ -101,7 +101,7 @@
                              :request-method :any}
           expected-buzz-meta {:path '("" "/buzz")
                               :request-method :post}]
-      (is (= (pl-bidi/route-metadata routes)
+      (is (= (comidi/route-metadata routes)
              {:routes [expected-foo-meta
                        expected-baz-meta
                        expected-bam-meta

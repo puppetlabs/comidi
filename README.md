@@ -1,16 +1,6 @@
-# pl-bidi
+# comidi
 
-[![Build Status](https://magnum.travis-ci.com/puppetlabs/pl-bidi.svg?token=ApBsaKK1zdeqHwzhXLzw&branch=master)](https://magnum.travis-ci.com/puppetlabs/pl-bidi)
+[![Build Status](https://magnum.travis-ci.com/puppetlabs/comidi.svg?token=ApBsaKK1zdeqHwzhXLzw&branch=master)](https://magnum.travis-ci.com/puppetlabs/comidi)
 
-A Clojure library designed to ... well, that part is up to you.
-
-## Usage
-
-FIXME
-
-## License
-
-Copyright © 2015 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+Puppet Labs utility functions and compojure-like syntax-sugar wrappers around
+the [bidi](https://github.com/juxt/bidi) web routing library.
