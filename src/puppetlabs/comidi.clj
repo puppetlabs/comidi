@@ -1,4 +1,4 @@
-(ns puppetlabs.bidi
+(ns puppetlabs.comidi
   (:require [bidi.ring :as bidi-ring]
             [bidi.bidi :as bidi]
             [clojure.zip :as zip]
