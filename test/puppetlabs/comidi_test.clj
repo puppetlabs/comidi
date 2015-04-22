@@ -1,8 +1,7 @@
 (ns puppetlabs.comidi-test
   (require [clojure.test :refer :all]
-           [puppetlabs.comidi :as comidi]
+           [puppetlabs.comidi :as comidi :refer :all]
            [schema.test :as schema-test]
-           [puppetlabs.comidi :refer :all]
            [schema.core :as schema]
            [clojure.zip :as zip]))
 
@@ -91,15 +90,20 @@
                         ["/bam" {:put :bam-handler}]
                         ["/bap" {:any :bap-handler}]]]
                       ["/buzz" {:post :buzz-handler}]]]
-          expected-foo-meta {:path '("" "/foo/" :foo)
+          expected-foo-meta {:path           ["" "/foo/" :foo]
+                             :route-id           "foo-:foo"
                              :request-method :any}
-          expected-baz-meta {:path '("" "/bar/" :bar "/baz")
+          expected-baz-meta {:path           ["" "/bar/" :bar "/baz"]
+                             :route-id           "bar-:bar-baz"
                              :request-method :get}
-          expected-bam-meta {:path '("" "/bar/" :bar "/bam")
+          expected-bam-meta {:path           ["" "/bar/" :bar "/bam"]
+                             :route-id           "bar-:bar-bam"
                              :request-method :put}
-          expected-bap-meta {:path '("" "/bar/" :bar "/bap")
+          expected-bap-meta {:path           ["" "/bar/" :bar "/bap"]
+                             :route-id           "bar-:bar-bap"
                              :request-method :any}
-          expected-buzz-meta {:path '("" "/buzz")
+          expected-buzz-meta {:path           ["" "/buzz"]
+                              :route-id           "buzz"
                               :request-method :post}]
       (is (= (comidi/route-metadata routes)
              {:routes [expected-foo-meta
@@ -158,40 +162,20 @@
                               (fn [req] (:route-params req))]))]
       (is (= {:foo "hi"
               :bar "there"}
-             (handler {:uri "/foo/hi/bar/there"})))))
-  (testing "route metadata is added to fn metadata"
-    (let [foo-handler (fn [req] :foo)
-          handler (routes->handler ["/foo" {:get foo-handler}])]
-      (let [route-meta (:route-metadata (meta handler))]
-        (is (= {:routes [{:path           ["/foo"]
-                          :request-method :get}]
-                :handlers {foo-handler {:path           ["/foo"]
-                                        :request-method :get}}}
-               route-meta))))))
+             (handler {:uri "/foo/hi/bar/there"}))))))
 
-(deftest routes->handler-middleware-test
+(deftest routes->handler-fn-test
   (let [handler (routes->handler
                   (context ["/foo/" :foo]
                            [["/bar/" :bar]
                             (fn [req] (:route-params req))])
                   (fn [f]
                     (fn [req]
-                      {:result (f req)
-                       :route-info (:route-info req)})))]
-    (is (= {:result {:foo "hi"
-                     :bar "there"}
-            :route-info {:path ["/foo/" :foo "/bar/" :bar]
-                         :request-method :any}}
+                      {:result (into {} (map (fn [[k v]] [k (str "wrapped " v)])
+                                             (f req)))})))]
+    (is (= {:result {:foo "wrapped hi"
+                     :bar "wrapped there"}}
            (handler {:uri "/foo/hi/bar/there"})))))
-
-(deftest context-handler-test
-  (let [handler (context-handler ["/foo/" :foo]
-                                 [["/bar/" :bar]
-                                  (fn [req] (:route-params req))])]
-    (is (= {:foo "hi"
-            :bar "there"}
-           (handler {:uri "/foo/hi/bar/there"})))))
-
 
 (deftest compojure-macros-test
   (let [routes (context ["/foo/" :foo]
@@ -279,6 +263,58 @@
     (is (= "hi/there"
            (handler {:uri "/foo/boo/hi/there"})))))
 
+(deftest route-names-test
+  (let [test-routes (routes
+                      (GET ["/foo/something/"] request
+                        "foo!")
+                      (POST ["/bar"] request
+                        "bar!")
+                      (PUT ["/baz" [#".*" :rest]] request
+                        "baz!")
+                      (ANY ["/bam/" [#"(?:bip|bap)" :rest]] request
+                        "bam!")
+                      (HEAD ["/bang/" [#".*" :rest] "/pow/" :pow] request
+                            "bang!"))
+        route-meta (route-metadata test-routes)
+        route-ids (map :route-id (:routes route-meta))]
+    (is (= #{"foo-something" "bar" "baz-/*/" "bam-/bip_bap/" "bang-/*/-pow-:pow"}
+           (set route-ids)))))
 
+(deftest wrap-with-route-metadata-test
+  (let [test-routes (routes
+                      (ANY ["/foo/" :foo] request
+                        "foo!")
+                      (GET ["/bar/" :bar] request
+                        "bar!"))
+        route-meta  (route-metadata test-routes)
+        test-atom   (atom {})
+        test-middleware (fn [f]
+                          (fn [req]
+                            (reset! test-atom (select-keys req [:route-info :route-metadata]))
+                            (f req)))
+        handler (-> (routes->handler test-routes)
+                    test-middleware
+                    (wrap-with-route-metadata test-routes))]
+    (handler {:uri "/foo/something"})
+    (is (= (-> test-atom deref :route-info :route-id) "foo-:foo"))
+    (is (= (-> test-atom deref :route-metadata) route-meta))
 
+    (handler {:uri "/bar/something" :request-method :get})
+    (is (= (-> test-atom deref :route-info :route-id) "bar-:bar"))
+    (is (= (-> test-atom deref :route-metadata) route-meta))))
 
+(deftest route-handler-uses-existing-match-context-test
+  (testing "Middleware can provide match-context for comidi handler"
+    (let [routes (routes
+                   (GET ["/foo-:foo"] request
+                     "foo!"))
+          fake-match-context {:handler (fn [req] (-> req :route-params :bar))
+                              :route-params {:bar "bar!"}}
+          wrap-with-fake-match-context (fn [app]
+                                         (fn [req]
+                                           (let [req (assoc req :match-context fake-match-context)]
+                                             (app req))))
+          handler (-> routes
+                      routes->handler
+                      wrap-with-fake-match-context)]
+      (is (= "bar!" (handler {:uri "/bunk"}))))))
