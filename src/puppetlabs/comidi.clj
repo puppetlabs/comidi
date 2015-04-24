@@ -6,7 +6,8 @@
             [compojure.response :as compojure-response]
             [ring.util.response :as ring-response]
             [schema.core :as schema]
-            [puppetlabs.kitchensink.core :as ks])
+            [puppetlabs.kitchensink.core :as ks]
+            [clojure.string :as str])
   (:import (java.util.regex Pattern)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -38,6 +39,10 @@
   {:path [PathElement]
    :request-method RequestMethod})
 
+(def RouteInfoWithId
+  (merge RouteInfo
+         {:route-id schema/Str}))
+
 (def Handler
   (schema/conditional
     keyword? schema/Keyword
@@ -45,8 +50,8 @@
     map? {RequestMethod (schema/recursive #'Handler)}))
 
 (def RouteMetadata
-  {:routes [RouteInfo]
-   :handlers {Handler RouteInfo}})
+  {:routes [RouteInfoWithId]
+   :handlers {Handler RouteInfoWithId}})
 
 (def BidiPattern
   (schema/conditional
@@ -64,24 +69,98 @@
   [(schema/one BidiPattern "pattern")
    (schema/one BidiRouteDestination "destination")])
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Private
+;;; Private - route id computation
 
-(defmacro handler-fn*
-  "Helper macro, used by the compojure-like macros (GET/POST/etc.) to generate
-  a function that provides compojure's destructuring and rendering support."
-  [bindings body]
-  `(fn [request#]
-     (compojure-response/render
-       (compojure/let-request [~bindings request#] ~@body)
-       request#)))
+(defn slashes->dashes
+  "Convert all forward slashes to hyphens"
+  [s]
+  (str/replace s #"\/" "-"))
 
-(defn route-with-method*
-  "Helper function, used by the compojure-like macros (GET/POST/etc.) to generate
-  a bidi route that includes a wrapped handler function."
-  [method pattern bindings body]
-  `[~pattern {~method (handler-fn* ~bindings ~body)}])
+(defn remove-leading-and-trailing-dashes
+  [s]
+  (-> s
+      (str/replace #"^-" "")
+      (str/replace #"-$" "")))
+
+(defn special-chars->underscores
+  "Convert all non-alpha chars except * and - to underscores"
+  [s]
+  (str/replace s #"[^\w\*\-]" "_"))
+
+(defn collapse-consecutive-underscores
+  [s]
+  (str/replace s #"_+" "_"))
+
+(defn remove-leading-and-trailing-underscores
+  [s]
+  (-> s
+      (str/replace #"^_" "")
+      (str/replace #"_$" "")))
+
+(defn add-regex-symbols
+  "Wrap a regex pattern with forward slashes to make it easier to recognize as a regex"
+  [s]
+  (str "/" s "/"))
+
+(schema/defn ^:always-validate
+  path-element->route-id-element :- schema/Str
+  "Given a String path element from comidi route metadata, convert it into a string
+  suitable for use in building a route id string."
+  [path-element :- schema/Str]
+  (-> path-element
+      slashes->dashes
+      remove-leading-and-trailing-dashes
+      special-chars->underscores
+      collapse-consecutive-underscores
+      remove-leading-and-trailing-underscores))
+
+(schema/defn ^:always-validate
+  regex-path-element->route-id-element :- schema/Str
+  "Given a Regex path element from comidi route metadata, convert it into a string
+  suitable for use in building a route id string."
+  [path-element :- RegexPathElement]
+  (-> path-element
+      first
+      str
+      path-element->route-id-element
+      add-regex-symbols))
+
+(schema/defn ^:always-validate
+  route-path-element->route-id-element :- schema/Str
+  "Given a route path element from comidi route metadata, convert it into a string
+  suitable for use in building a route id string.  This function is mostly
+  responsible for determining the type of the path element and dispatching to
+  the appropriate function."
+  [path-element :- PathElement]
+  (cond
+    (string? path-element)
+    (path-element->route-id-element path-element)
+
+    (keyword? path-element)
+    (pr-str path-element)
+
+    (nil? (schema/check RegexPathElement path-element))
+    (regex-path-element->route-id-element path-element)
+
+    :else
+    (throw (IllegalStateException. (str "Unrecognized path element: " path-element)))))
+
+(schema/defn ^:always-validate
+  route-path->route-id :- schema/Str
+  "Given a route path (from comidi route-metadata), build a route-id string for
+  the route.  This route-id can be used as a unique identifier for a route."
+  [route-path :- BidiPattern]
+  (->> route-path
+       (map route-path-element->route-id-element)
+       (filter #(not (empty? %)))
+       (str/join "-")))
+
+(schema/defn ^:always-validate
+  add-route-name :- RouteInfoWithId
+  "Given a RouteInfo, compute a route-id and return a RouteInfoWithId."
+  [route-info :- RouteInfo]
+  (assoc route-info :route-id (route-path->route-id (:path route-info))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private - route metadata computation
@@ -133,7 +212,8 @@
         (-> loc zip/down zip/right zip/down))
 
       :else
-      (let [route-info (update-route-info* route-info pattern)]
+      (let [route-info (-> (update-route-info* route-info pattern)
+                           add-route-name)]
         (-> route-meta
             (update-in [:routes] conj route-info)
             (assoc-in [:handlers matched] route-info))))))
@@ -152,55 +232,89 @@
         routes))))
 
 (schema/defn ^:always-validate
-  route-metadata :- RouteMetadata
+  route-metadata* :- RouteMetadata
   "Traverses a Bidi route tree and returns route metadata, which includes a list
   of RouteInfo objects (one per route), plus a mechanism to look up the
   RouteInfo for a given handler."
   [routes :- BidiRoute]
-  (let [route-info {:path   []
+  (let [route-info {:path           []
                     :request-method :any}
-        loc        (-> [routes] zip/vector-zip zip/down)]
-    (breadth-route-metadata* {:routes []
+        loc (-> [routes] zip/vector-zip zip/down)]
+    (breadth-route-metadata* {:routes   []
                               :handlers {}} route-info loc)))
 
-(schema/defn ^:always-validate
-  make-handler :- (schema/pred fn?)
-  "Create a Ring handler from the route definition data structure. (This code
-  is largely borrowed from bidi core.)  Arguments:
+(def memoized-route-metadata*
+  (memoize route-metadata*))
 
-  - route-meta: metadata about the routes; allows us to look up the route info
-                by handler.  You can get this by calling `route-metadata`.
-  - routes: the Bidi route tree
-  - handler-fn: this fn will be called on all of the handlers found in the bidi
-                route tree; it is expected to return a ring handler fn for that
-                route.  If you are using the compojure-like macros in this
-                namespace or have nested your ring handler functions in the bidi
-                tree by other means, you can just pass `identity` here, or pass
-                in some middleware fn to wrap around the nested ring handlers.
-                The handlers will have access to the `RouteInfo` of the matching
-                bidi route via the `:route-info` key in the request map."
-  [route-meta :- RouteMetadata
-   routes :- BidiRoute
-   handler-fn :- (schema/pred fn?)]
-  (let [compiled-routes (bidi/compile-route routes)]
-    (fn [{:keys [uri path-info] :as req}]
-      (let [path (or path-info uri)
-            {:keys [handler route-params] :as match-context}
-            (apply bidi/match-route compiled-routes path (apply concat (seq req)))]
-        (when handler
-          (let [req (-> req
-                        (update-in [:params] merge route-params)
-                        (update-in [:route-params] merge route-params)
-                        (assoc-in [:route-info] (get-in route-meta
-                                                         [:handlers handler])))]
-            (bidi-ring/request
-              (handler-fn handler)
-              req
-              (apply dissoc match-context :handler (keys req)))))))))
+(defn make-handler
+  "Create a Ring handler from the route definition data
+  structure. Matches a handler from the uri in the request, and invokes
+  it with the request as a parameter. (This code is largely copied from the
+  bidi upstream, but we add support for inserting the match-context via
+  middleware.)"
+  ([route handler-fn]
+   (fn [{:keys [uri path-info] :as req}]
+     (let [path (or path-info uri)
+           {:keys [handler route-params] :as match-context}
+           (or (:match-context req)
+               (apply bidi/match-route route path (apply concat (seq req))))]
+       (when handler
+         (bidi-ring/request
+           (handler-fn handler)
+           (-> req
+               (update-in [:params] merge route-params)
+               (update-in [:route-params] merge route-params))
+           (apply dissoc match-context :handler (keys req))
+           )))))
+  ([route] (make-handler route identity)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Private - helpers for compojure-like syntax
+
+(defmacro handler-fn*
+  "Helper macro, used by the compojure-like macros (GET/POST/etc.) to generate
+  a function that provides compojure's destructuring and rendering support."
+  [bindings body]
+  `(fn [request#]
+     (compojure-response/render
+       (compojure/let-request [~bindings request#] ~@body)
+       request#)))
+
+(defn route-with-method*
+  "Helper function, used by the compojure-like macros (GET/POST/etc.) to generate
+  a bidi route that includes a wrapped handler function."
+  [method pattern bindings body]
+  `[~pattern {~method (handler-fn* ~bindings ~body)}])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Public - core functions
+
+(schema/defn ^:always-validate
+  route-metadata :- RouteMetadata
+  "Build up a map of metadata describing the routes.  This metadata map can be
+  used for introspecting the routes after building the handler, and can also
+  be used with the `wrap-with-route-metadata` middleware."
+  [routes :- BidiRoute]
+  (memoized-route-metadata* routes))
+
+(schema/defn ^:always-validate
+  wrap-with-route-metadata :- (schema/pred fn?)
+  "Ring middleware; adds the comidi route-metadata to the request map, as well
+  as a :route-info key that can be used to determine which route a given request
+  matches."
+  [app :- (schema/pred fn?)
+   routes :- BidiRoute]
+  (let [compiled-routes (bidi/compile-route routes)
+        route-meta      (route-metadata routes)]
+    (fn [{:keys [uri path-info] :as req}]
+      (let [path (or path-info uri)
+            {:keys [handler] :as match-context}
+            (apply bidi/match-route compiled-routes path (apply concat (seq req)))
+            route-info (get-in route-meta [:handlers handler])]
+        (app (assoc req
+               :route-metadata route-meta
+               :route-info route-info
+               :match-context match-context))))))
 
 (schema/defn ^:always-validate
   routes :- BidiRoute
@@ -224,28 +338,14 @@
 (schema/defn ^:always-validate
   routes->handler :- (schema/pred fn?)
   "Given a bidi route tree, converts into a ring request handler function.  You
-  may pass an optional middleware function that will be wrapped around the
-  request handling; the middleware fn will have access to the `RouteInfo` of the
-  matching bidi route via the `:route-info` key in the request map."
+  may pass an optional handler function which will be wrapped around the
+  bidi leaf."
   ([routes :- BidiRoute
-    route-middleware-fn :- (schema/maybe (schema/pred fn?))]
-   (let [route-meta (route-metadata routes)]
-     (with-meta
-       (make-handler route-meta
-                     routes
-                     route-middleware-fn)
-       {:route-metadata route-meta})))
+    handler-fn :- (schema/maybe (schema/pred fn?))]
+    (let [compiled-routes (bidi/compile-route routes)]
+      (make-handler compiled-routes handler-fn)))
   ([routes]
    (routes->handler routes identity)))
-
-(schema/defn ^:always-validate
-  context-handler :- (schema/pred fn?)
-  "Convenience function that effectively composes `context` and `routes->handler`."
-  [url-prefix :- BidiPattern
-   & routes :- [BidiRoute]]
-  (routes->handler
-    (apply context url-prefix routes)))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public - compojure-like convenience macros
@@ -280,5 +380,5 @@
 (defn not-found
   [body]
   [[[#".*" :rest]] (fn [request]
-                   (-> (compojure-response/render body request)
-                       (ring-response/status 404)))])
+                     (-> (compojure-response/render body request)
+                         (ring-response/status 404)))])
