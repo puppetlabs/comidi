@@ -5,7 +5,7 @@
     :password :env/nexus_jenkins_password
     :sign-releases false })
 
-(defproject puppetlabs/comidi "0.1.0-SNAPSHOT"
+(defproject puppetlabs/comidi "0.1.0"
   :description "Puppet Labs utility functions and compojure-like wrappers for use with the bidi web routing library"
   :url "https://github.com/puppetlabs/comidi"
 
