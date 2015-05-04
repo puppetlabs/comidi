@@ -1,11 +1,22 @@
 # comidi
 
-[![Build Status](https://magnum.travis-ci.com/puppetlabs/comidi.svg?token=ApBsaKK1zdeqHwzhXLzw&branch=master)](https://magnum.travis-ci.com/puppetlabs/comidi)
+[![Build Status](https://travis-ci.org/puppetlabs/comidi.svg?branch=master)](https://travis-ci.org/puppetlabs/comidi)
 
-Puppet Labs utility functions and compojure-like syntax-sugar wrappers around
-the [bidi](https://github.com/juxt/bidi) web routing library.
+Comidi is a library containing utility functions and compojure-like syntax-sugar
+wrappers around the [bidi](https://github.com/juxt/bidi) web routing library.
+It aims to provide a way to define your web routes that takes andvantage of the
+strengths of both bidi and compojure:
+
+* Route definitions are, at the end of the day, simple data structures (like bidi),
+  so you can compose / introspect them.
+* Helper functions / macros for defining routes still provide the nice syntax
+  of compojure; destructuring the request in a simple binding form, 'rendering'
+  the response whether you define it as a string/map literal, a function reference,
+  an inline body form, etc.
 
 ## Quick Start
+
+[![Clojars Project](http://clojars.org/puppetlabs/comidi/latest-version.svg)](http://clojars.org/puppetlabs/comidi)
 
 ```clj
 (let [my-routes (context "/my-app/"
@@ -34,48 +45,9 @@ Notable differences from compojure above:
 
 Other than those differences, the API should be very close to compojure's.
 
-## Motivation
-
-Recently, we've had some features we needed to implement around web routing
-which felt like they should be able to be handled at a general / library level,
-rather than with app-specific code.  The primary example is tracking request
-metrics for all of the routes in a given Clojure web app.
-
-Compojure has proven exceedingly difficult to use for this, because the way it
-builds up a route tree involves macros and nested functions that make it
-basically impossible to do any introspection of the route tree after it is
-constructed.
-
-The lack of introspection capabilities in Compojure seems to be a common enough
-problem that other routing libraries, which are data-driven, are popping up and
-gaining some popularity.  Pedestal (Cognitect's library) is one example of this,
-but the other one that kept coming up in searches for me was
-[bidi](https://github.com/juxt/bidi).
-
-Bidi is a bi-directional web routing library that represents the route tree as
-a pure data structure (think simple vectors and maps).  After you've composed
-your route tree via whatever usual Clojure mechanisms you prefer, you can then
-ask bidi to convert it into a normal ring handler function, and wrap it with
-middleware just like you would with any other ring handler.  The difference is
-that you can still hang on to a reference to the route tree data structure and
-do all kinds of cool things with it.  It seems to be gaining traction; I know that
-it's popular in the ClojureScript community and that David Nolen has been using
-it for some stuff.
-
-After playing with bidi for a few hours I was hooked.  I did a POC to validate
-that I could do what I wanted to in terms of writing some generalized HTTP metrics
-around a bidi route tree, and it worked like a charm.  At that point it was a
-question of how hard it would be to port existing Compojure apps over to be able
-to take advantage of these capabilities.
-
-Compojure's routing syntax is pretty nice to code against.  I thought it would be
-ideal to be able to use some of that same syntax, while still ending up with a bidi
-route tree at the end of the day.  It turned out that this wasn't too difficult
-to do; enter `comidi`.
-
 ## What does Comidi do?
 
-Comidi simply provides some macros and functions that are intended to feel very similar
+Comidi provides some macros and functions that are intended to feel very similar
 to the compojure routing macros / functions, but under the hood they construct,
 compose, and return bidi route trees rather than compojure handler functions.
 
@@ -132,18 +104,9 @@ routes the request matches.  e.g.:
 {:route-id "foo", :path ["" "/foo"], :request-method :any}
 ```
 
-## Why closed source?
-
-Because the original inspiration for this work was to be able to supplement a
-generic metrics library, and metrics is one of the differentiators for PE Puppet
-Server.  And because it's easy to go from closed to open, and not the other way
-around.  I expect this will probably go OSS soon.
-
 ## What's next?
 
-* The metrics library that I alluded to several times above is basically ready,
-  just needs to be pulled out into a separate library; expect an announcement
-  very soon.
+* Metrics library for tracking request metrics
 
 * API docs: looking into swagger integration.  I could swear I found some bidi-swagger
   bindings somewhere a while back, but am not finding them at the moment.  It

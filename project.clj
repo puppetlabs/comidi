@@ -1,10 +1,3 @@
-(defn deploy-info
-  [url]
-  { :url url
-    :username :env/nexus_jenkins_username
-    :password :env/nexus_jenkins_password
-    :sign-releases false })
-
 (defproject puppetlabs/comidi "0.1.1-SNAPSHOT"
   :description "Puppet Labs utility functions and compojure-like wrappers for use with the bidi web routing library"
   :url "https://github.com/puppetlabs/comidi"
@@ -19,5 +12,7 @@
                  [prismatic/schema "0.4.0"]
                  [puppetlabs/kitchensink "1.1.0"]]
 
-  :deploy-repositories [["releases" ~(deploy-info "http://nexus.delivery.puppetlabs.net/content/repositories/releases/")]
-                        ["snapshots" ~(deploy-info "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/")]])
+  :deploy-repositories [["releases" {:url "https://clojars.org/repo"
+                                     :username :env/clojars_jenkins_username
+                                     :password :env/clojars_jenkins_password
+                                     :sign-releases false}]])
