@@ -56,6 +56,9 @@ been using (or port over a compojure app with minimal effort), but end up with
 an introspectable route tree data structure that you can do all sorts of cool
 things with before you wrap it as a ring handler.
 
+Comidi also provides Ring middleware for automatically tracking metrics for all of your
+`comidi` HTTP routes.  See the section on HTTP Metrics below.
+
 Under the hood: comidi uses bidi to do all of the work for routing, and uses
 a few functions from compojure to maintain some of the nice syntax.  Specifically,
 it uses compojure's route destructuring to bind local variables for parameters
@@ -104,9 +107,33 @@ routes the request matches.  e.g.:
 {:route-id "foo", :path ["" "/foo"], :request-method :any}
 ```
 
-## What's next?
+## Ring Middleware HTTP Metrics
 
-* Metrics library for tracking request metrics
+To get the most value out of this library, use it in concert with
+[trapperkeeper-metrics](https://github.com/puppetlabs/trapperkeeper-metrics)
+(to take advantage of the built-in ring-middleware for tracking HTTP metrics)
+and the [Trapperkeeper Status Service](https://github.com/puppetlabs/trapperkeeper-status)
+(to expose the most useful metrics data from your app via HTTP).
+
+This repo includes an example app that is intended to show how to tie all of those
+pieces together.  The easiest way to get started is probably to run the example
+app, and then take a peek into the code.
+
+To start the example web app, run:
+
+`lein example`
+
+Then, in another shell, run:
+
+`lein example-data`
+
+This will generate some random requests to the web app, and then
+issue a request to the status endpoint to print some summary data
+about the metrics.
+
+For more info about the HTTP metrics, see the [comidi metrics documentation](./documentation/metrics.md).
+
+## What's next?
 
 * API docs: looking into swagger integration.  I could swear I found some bidi-swagger
   bindings somewhere a while back, but am not finding them at the moment.  It
