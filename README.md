@@ -6,7 +6,7 @@ A committee approach to defining Clojure HTTP routes.
 
 Comidi is a library containing utility functions and [compojure](https://github.com/weavejester/compojure)-like syntax-sugar
 wrappers around the [bidi](https://github.com/juxt/bidi) web routing library.
-It aims to provide a way to define your web routes that takes andvantage of the
+It aims to provide a way to define your web routes that takes advantage of the
 strengths of both bidi and compojure:
 
 * Route definitions are, at the end of the day, simple data structures (like bidi),
