@@ -1,5 +1,7 @@
 # comidi
 
+A committee approach to defining Clojure HTTP routes.
+
 [![Build Status](https://travis-ci.org/puppetlabs/comidi.svg?branch=master)](https://travis-ci.org/puppetlabs/comidi)
 
 Comidi is a library containing utility functions and compojure-like syntax-sugar
