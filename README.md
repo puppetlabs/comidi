@@ -106,9 +106,11 @@ routes the request matches.  e.g.:
 {:route-id "foo", :path ["" "/foo"], :request-method :any}
 ```
 
-## What's next?
+## Trapperkeeper / Metrics Integration
 
-* Metrics library for tracking request metrics
+The [`trapperkeeper-comidi-metrics`](https://github.com/puppetlabs/trapperkeeper-comidi-metrics) contains some middleware that will automatically generate and track [metrics](https://github.com/dropwizard/metrics) for all of the routes in your comidi/bidi route tree, as well as easy integration into [`trapperkeeper`](https://github.com/puppetlabs/trapperkeeper).
+
+## What's next?
 
 * API docs: looking into swagger integration.  I could swear I found some bidi-swagger
   bindings somewhere a while back, but am not finding them at the moment.  It
