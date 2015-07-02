@@ -4,7 +4,7 @@ A committee approach to defining Clojure HTTP routes.
 
 [![Build Status](https://travis-ci.org/puppetlabs/comidi.svg?branch=master)](https://travis-ci.org/puppetlabs/comidi)
 
-Comidi is a library containing utility functions and compojure-like syntax-sugar
+Comidi is a library containing utility functions and [compojure](https://github.com/weavejester/compojure)-like syntax-sugar
 wrappers around the [bidi](https://github.com/juxt/bidi) web routing library.
 It aims to provide a way to define your web routes that takes andvantage of the
 strengths of both bidi and compojure:
