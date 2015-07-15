@@ -120,3 +120,9 @@ The [`trapperkeeper-comidi-metrics`](https://github.com/puppetlabs/trapperkeeper
 * You tell me!  This is pre-1.0 and the API should still be considered fungible.
   If there's something you need that this library isn't doing, we can probably
   do it.  Ping us or submit a PR.
+
+## Support
+
+We use the
+[Trapperkeeper project on JIRA](https://tickets.puppetlabs.com/browse/TK)
+for tickets on Comidi, although Github issues are welcome too.
