@@ -1,5 +1,6 @@
 (ns puppetlabs.comidi
   (:require [bidi.ring :as bidi-ring]
+            [bidi.schema :as bidi-schema]
             [bidi.bidi :as bidi]
             [clojure.zip :as zip]
             [compojure.core :as compojure]
@@ -21,22 +22,16 @@
   (schema/pred ks/zipper?))
 
 (def http-methods
-  #{:any :get :post :put :delete :head})
+  #{:any :get :post :put :delete :head :options})
 
 (def RequestMethod
-  (schema/enum :any :get :post :put :delete :head))
+  (schema/enum :any :get :post :put :delete :head :options))
 
-(def RegexPathElement
+(def RegexPatternSegment
   [(schema/one Pattern "regex") (schema/one schema/Keyword "variable")])
 
-(def PathElement
-  (schema/conditional
-    string? schema/Str
-    keyword? schema/Keyword
-    vector? RegexPathElement))
-
 (def RouteInfo
-  {:path [PathElement]
+  {:path           [bidi-schema/PatternSegment]
    :request-method RequestMethod})
 
 (def RouteInfoWithId
@@ -52,22 +47,6 @@
 (def RouteMetadata
   {:routes [RouteInfoWithId]
    :handlers {Handler RouteInfoWithId}})
-
-(def BidiPattern
-  (schema/conditional
-    keyword? schema/Keyword
-    string?  schema/Str
-    sequential?  [PathElement]))
-
-(def BidiRouteDestination
-  (schema/conditional
-    #(nil? (schema/check Handler %)) Handler
-    :else [[(schema/one BidiPattern "pattern")
-            (schema/one (schema/recursive #'BidiRouteDestination) "destination")]]))
-
-(def BidiRoute
-  [(schema/one BidiPattern "pattern")
-   (schema/one BidiRouteDestination "destination")])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private - route id computation
@@ -119,7 +98,7 @@
   regex-path-element->route-id-element :- schema/Str
   "Given a Regex path element from comidi route metadata, convert it into a string
   suitable for use in building a route id string."
-  [path-element :- RegexPathElement]
+  [path-element :- RegexPatternSegment]
   (-> path-element
       first
       str
@@ -132,7 +111,7 @@
   suitable for use in building a route id string.  This function is mostly
   responsible for determining the type of the path element and dispatching to
   the appropriate function."
-  [path-element :- PathElement]
+  [path-element :- bidi-schema/PatternSegment]
   (cond
     (string? path-element)
     (path-element->route-id-element path-element)
@@ -140,7 +119,7 @@
     (keyword? path-element)
     (pr-str path-element)
 
-    (nil? (schema/check RegexPathElement path-element))
+    (nil? (schema/check RegexPatternSegment path-element))
     (regex-path-element->route-id-element path-element)
 
     :else
@@ -150,7 +129,7 @@
   route-path->route-id :- schema/Str
   "Given a route path (from comidi route-metadata), build a route-id string for
   the route.  This route-id can be used as a unique identifier for a route."
-  [route-path :- BidiPattern]
+  [route-path :- bidi-schema/Pattern]
   (->> route-path
        (map route-path-element->route-id-element)
        (filter #(not (empty? %)))
@@ -171,12 +150,12 @@
   the current path elements of a route as we traverse the Bidi route tree via
   zipper."
   [route-info :- RouteInfo
-   pattern :- BidiPattern]
+   pattern :- bidi-schema/Pattern]
   (cond
     (contains? http-methods pattern)
     (assoc-in route-info [:request-method] pattern)
 
-    (nil? (schema/check RegexPathElement pattern))
+    (nil? (schema/check RegexPatternSegment pattern))
     (update-in route-info [:path] concat [pattern])
 
     (sequential? pattern)
@@ -236,7 +215,7 @@
   "Traverses a Bidi route tree and returns route metadata, which includes a list
   of RouteInfo objects (one per route), plus a mechanism to look up the
   RouteInfo for a given handler."
-  [routes :- BidiRoute]
+  [routes :- bidi-schema/RoutePair]
   (let [route-info {:path           []
                     :request-method :any}
         loc (-> [routes] zip/vector-zip zip/down)]
@@ -294,7 +273,7 @@
   "Build up a map of metadata describing the routes.  This metadata map can be
   used for introspecting the routes after building the handler, and can also
   be used with the `wrap-with-route-metadata` middleware."
-  [routes :- BidiRoute]
+  [routes :- bidi-schema/RoutePair]
   (memoized-route-metadata* routes))
 
 (schema/defn ^:always-validate
@@ -303,7 +282,7 @@
   as a :route-info key that can be used to determine which route a given request
   matches."
   [app :- (schema/pred fn?)
-   routes :- BidiRoute]
+   routes :- bidi-schema/RoutePair]
   (let [compiled-routes (bidi/compile-route routes)
         route-meta      (route-metadata routes)]
     (fn [{:keys [uri path-info] :as req}]
@@ -317,22 +296,22 @@
                :match-context match-context))))))
 
 (schema/defn ^:always-validate
-  routes :- BidiRoute
+routes :- bidi-schema/RoutePair
   "Combines multiple bidi routes into a single data structure; this is largely
   just a convenience function for grouping several routes together as a single
   object that can be passed around."
-  [& routes :- [BidiRoute]]
+  [& routes :- [bidi-schema/RoutePair]]
   ["" (vec routes)])
 
 (schema/defn ^:always-validate
-  context :- BidiRoute
+context :- bidi-schema/RoutePair
   "Combines multiple bidi routes together into a single data structure, but nests
   them all under the given url-prefix.  This is similar to compojure's `context`
   macro, but does not accept a binding form.  You can still destructure variables
   by passing a bidi pattern for `url-prefix`, and the variables will be available
   to all nested routes."
-  [url-prefix :- BidiPattern
-   & routes :- [BidiRoute]]
+  [url-prefix :- bidi-schema/Pattern
+   & routes :- [bidi-schema/RoutePair]]
   [url-prefix (vec routes)])
 
 (schema/defn ^:always-validate
@@ -340,7 +319,7 @@
   "Given a bidi route tree, converts into a ring request handler function.  You
   may pass an optional handler function which will be wrapped around the
   bidi leaf."
-  ([routes :- BidiRoute
+  ([routes :- bidi-schema/RoutePair
     handler-fn :- (schema/maybe (schema/pred fn?))]
     (let [compiled-routes (bidi/compile-route routes)]
       (make-handler compiled-routes handler-fn)))

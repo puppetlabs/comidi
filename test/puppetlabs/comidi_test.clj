@@ -25,36 +25,6 @@
     (is (nil? (schema/check Handler {:get (fn [] :foo)})))
     (is (nil? (schema/check Handler {:post :foo})))))
 
-(deftest pattern-schema-test
-  (testing "pattern schema"
-    (is (nil? (schema/check BidiPattern "/foo")))
-    (is (nil? (schema/check BidiPattern :foo)))
-    (is (nil? (schema/check BidiPattern ["/foo/" :foo "/foo"])))
-    (is (nil? (schema/check BidiPattern ["/foo/" [#".*" :rest]])))))
-
-(deftest destination-schema-test
-  (testing "route destination schema"
-    (is (nil? (schema/check BidiRouteDestination :foo)))
-    (is (nil? (schema/check BidiRouteDestination (fn [] nil))))
-    (is (nil? (schema/check BidiRouteDestination {:get (fn [] nil)})))
-    (is (nil? (schema/check BidiRouteDestination {:get :my-handler})))
-    (is (nil? (schema/check BidiRouteDestination [[["/foo/" :foo "/foo"] :foo]])))
-    (is (not (nil? (schema/check BidiRouteDestination [["/foo/" :foo "/foo"] :foo]))))
-    (is (nil? (schema/check BidiRouteDestination [[["/foo/" :foo]
-                                                   :foo-handler]
-                                                  [["/bar/" :bar]
-                                                   {:get :bar-handler}]])))))
-
-(deftest route-schema-test
-  (testing "route schema"
-    (is (nil? (schema/check BidiRoute [:foo :foo])))
-    (is (nil? (schema/check BidiRoute ["/foo" [[:foo :foo]]])))
-    (is (not (nil? (schema/check BidiRoute ["/foo" [:foo :foo]]))))
-    (is (nil? (schema/check BidiRoute ["" [[["/foo/" :foo]
-                                            :foo-handler]
-                                           [["/bar/" :bar]
-                                            {:get :bar-handler}]]])))))
-
 (deftest update-route-info-test
   (let [orig-route-info {:path           []
                          :request-method :any}]
@@ -70,7 +40,7 @@
     (testing "keyword path elements get added to the path"
       (is (= {:path           [:foo]
               :request-method :any}
-             (update-route-info* orig-route-info :foo))))
+             (update-route-info* orig-route-info [:foo]))))
     (testing "vector path elements get flattened and added to the path"
       (is (= {:path           ["/foo/" :foo]
               :request-method :any}
@@ -88,7 +58,7 @@
                       [["/bar/" :bar]
                        [["/baz" {:get :baz-handler}]
                         ["/bam" {:put :bam-handler}]
-                        ["/bap" {:any :bap-handler}]]]
+                        ["/bap" {:options :bap-handler}]]]
                       ["/buzz" {:post :buzz-handler}]]]
           expected-foo-meta {:path           ["" "/foo/" :foo]
                              :route-id           "foo-:foo"
@@ -101,7 +71,7 @@
                              :request-method :put}
           expected-bap-meta {:path           ["" "/bar/" :bar "/bap"]
                              :route-id           "bar-:bar-bap"
-                             :request-method :any}
+                             :request-method :options}
           expected-buzz-meta {:path           ["" "/buzz"]
                               :route-id           "buzz"
                               :request-method :post}]

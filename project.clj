@@ -8,9 +8,9 @@
                  [org.clojure/tools.reader "0.8.9"]
                  [ring/ring-core "1.3.2"]
                  [commons-io "2.4"]
-                 [bidi "1.18.9" :exclusions [org.clojure/clojurescript]]
+                 [bidi "1.21.0" :exclusions [org.clojure/clojurescript]]
                  [compojure "1.3.3"]
-                 [prismatic/schema "0.4.0"]
+                 [prismatic/schema "0.4.3"]
                  [puppetlabs/kitchensink "1.1.0"]]
 
   :deploy-repositories [["releases" {:url "https://clojars.org/repo"
