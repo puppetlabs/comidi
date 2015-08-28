@@ -134,19 +134,6 @@
               :bar "there"}
              (handler {:uri "/foo/hi/bar/there"}))))))
 
-(deftest routes->handler-fn-test
-  (let [handler (routes->handler
-                  (context ["/foo/" :foo]
-                           [["/bar/" :bar]
-                            (fn [req] (:route-params req))])
-                  (fn [f]
-                    (fn [req]
-                      {:result (into {} (map (fn [[k v]] [k (str "wrapped " v)])
-                                             (f req)))})))]
-    (is (= {:result {:foo "wrapped hi"
-                     :bar "wrapped there"}}
-           (handler {:uri "/foo/hi/bar/there"})))))
-
 (deftest compojure-macros-test
   (let [routes (context ["/foo/" :foo]
                         (ANY ["/any/" :any] [foo any]
