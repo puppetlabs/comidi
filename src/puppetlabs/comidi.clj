@@ -22,14 +22,12 @@
 (def Zipper
   (schema/pred ks/zipper?))
 
-(def http-methods
-  #{:any :get :post :put :delete :head :options})
-
 (def RequestMethod
   (schema/enum :any :get :post :put :delete :head :options))
 
+; Derived from bidi-schema PatternSegment
 (def RegexPatternSegment
-  [(schema/one Pattern "regex") (schema/one schema/Keyword "variable")])
+  (schema/pair schema/Regex "qual" schema/Keyword "id"))
 
 (def RouteInfo
   {:path           [bidi-schema/PatternSegment]
@@ -64,9 +62,9 @@
       (str/replace #"-$" "")))
 
 (defn special-chars->underscores
-  "Convert all non-alpha chars except * and - to underscores"
+  "Convert all non-alpha chars except ! * and - to underscores"
   [s]
-  (str/replace s #"[^\w\*\-]" "_"))
+  (str/replace s #"[^\w\!\*\-]" "_"))
 
 (defn collapse-consecutive-underscores
   [s]
@@ -112,7 +110,7 @@
   suitable for use in building a route id string.  This function is mostly
   responsible for determining the type of the path element and dispatching to
   the appropriate function."
-  [path-element :- bidi-schema/PatternSegment]
+  [path-element]
   (cond
     (string? path-element)
     (path-element->route-id-element path-element)
@@ -130,7 +128,7 @@
   route-path->route-id :- schema/Str
   "Given a route path (from comidi route-metadata), build a route-id string for
   the route.  This route-id can be used as a unique identifier for a route."
-  [route-path :- bidi-schema/Pattern]
+  [route-path :- [bidi-schema/PatternSegment]]
   (->> route-path
        (map route-path-element->route-id-element)
        (filter #(not (empty? %)))
@@ -145,6 +143,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private - route metadata computation
 
+(def http-methods
+  #{:any :get :post :put :delete :head :options})
+
 (schema/defn ^:always-validate
   update-route-info* :- RouteInfo
   "Helper function, used to maintain a RouteInfo data structure that represents
@@ -158,6 +159,12 @@
 
     (nil? (schema/check RegexPatternSegment pattern))
     (update-in route-info [:path] concat [pattern])
+
+    (= true pattern)
+    (update-in route-info [:path] conj "*")
+
+    (= false pattern)
+    (update-in route-info [:path] conj "!")
 
     (sequential? pattern)
     (if-let [next (first pattern)]
