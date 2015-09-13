@@ -6,6 +6,8 @@
 
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.reader "0.8.9"]
+                 [clj-time "0.7.0"]
+
                  [ring/ring-core "1.3.2"]
                  [commons-io "2.4"]
                  [bidi "1.21.0" :exclusions [org.clojure/clojurescript]]

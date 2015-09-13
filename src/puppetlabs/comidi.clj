@@ -5,6 +5,7 @@
             [clojure.zip :as zip]
             [compojure.core :as compojure]
             [compojure.response :as compojure-response]
+            [ring.util.mime-type :as mime]
             [ring.util.response :as ring-response]
             [schema.core :as schema]
             [puppetlabs.kitchensink.core :as ks]
@@ -250,6 +251,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private - helpers for compojure-like syntax
 
+(defn- add-mime-type [response path options]
+  (if-let [mime-type (mime/ext-mime-type path (:mime-types options {}))]
+    (ring-response/content-type response mime-type)
+    response))
+
 (defmacro handler-fn*
   "Helper macro, used by the compojure-like macros (GET/POST/etc.) to generate
   a function that provides compojure's destructuring and rendering support."
@@ -361,3 +367,14 @@ context :- bidi-schema/RoutePair
   [[[#".*" :rest]] (fn [request]
                      (-> (compojure-response/render body request)
                          (ring-response/status 404)))])
+
+(defn resources
+  "A route for serving resources on the classpath. Accepts the following
+  keys:
+    :root       - the root prefix path of the resources, defaults to 'public'
+    :mime-types - an optional map of file extensions to mime types"
+  [path & [options]]
+  (GET [path [#".*" :resource-path]] [resource-path]
+    (let [root (:root options "public")]
+      (some-> (ring-response/resource-response (str root "/" resource-path))
+        (add-mime-type resource-path options)))))
