@@ -232,21 +232,19 @@
   it with the request as a parameter. (This code is largely copied from the
   bidi upstream, but we add support for inserting the match-context via
   middleware.)"
-  ([route handler-fn]
-   (fn [{:keys [uri path-info] :as req}]
-     (let [path (or path-info uri)
-           {:keys [handler route-params] :as match-context}
-           (or (:match-context req)
-               (apply bidi/match-route route path (apply concat (seq req))))]
-       (when handler
-         (bidi-ring/request
-           (handler-fn handler)
-           (-> req
-               (update-in [:params] merge route-params)
-               (update-in [:route-params] merge route-params))
-           (apply dissoc match-context :handler (keys req))
-           )))))
-  ([route] (make-handler route identity)))
+  [route]
+  (fn [{:keys [uri path-info] :as req}]
+    (let [path (or path-info uri)
+          {:keys [handler route-params] :as match-context}
+          (or (:match-context req)
+              (apply bidi/match-route route path (apply concat (seq req))))]
+      (when handler
+        (bidi-ring/request
+         handler
+         (-> req
+             (update-in [:params] merge route-params)
+             (update-in [:route-params] merge route-params))
+         (apply dissoc match-context :handler (keys req)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private - helpers for compojure-like syntax
@@ -348,15 +346,10 @@
 
 (schema/defn ^:always-validate
   routes->handler :- (schema/pred fn?)
-  "Given a bidi route tree, converts into a ring request handler function.  You
-  may pass an optional handler function which will be wrapped around the
-  bidi leaf."
-  ([routes :- bidi-schema/RoutePair
-    handler-fn :- (schema/maybe (schema/pred fn?))]
-    (let [compiled-routes (bidi/compile-route routes)]
-      (make-handler compiled-routes handler-fn)))
-  ([routes]
-   (routes->handler routes identity)))
+  "Given a bidi route tree, converts into a ring request handler function"
+  [routes :- bidi-schema/RoutePair]
+   (let [compiled-routes (bidi/compile-route routes)]
+     (make-handler compiled-routes)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public - compojure-like convenience macros
