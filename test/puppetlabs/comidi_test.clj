@@ -288,3 +288,45 @@
                       routes->handler
                       wrap-with-fake-match-context)]
       (is (= "bar!" (handler {:uri "/bunk"}))))))
+
+(deftest wrap-leaves-with-middleware-test
+  (let [inner-middleware (fn [handler]
+                           (fn [request]
+                             (update-in (handler request) [:body] #(str "inner-" %))))
+        bb-wrapper-middleware (fn [handler]
+                                (fn [request]
+                                  (update-in (handler request) [:body] #(str "bb-wrapper-" %))))
+        outer-middleware (fn [handler]
+                           (fn [request]
+                             (update-in (handler request) [:body] #(str "outer-" %))))
+        aa-route (GET "/aa" request "aa!")
+        bb-route (ANY "/bb" request "bb!")
+        cc-route (ANY "/cc" request "cc!")
+        dd-route (DELETE "/dd" request "dd!")
+        ee-route (GET "/ee" request "ee!")
+        ff-route (ANY "/ff" request "ff!")
+        left-routes (context "/left" aa-route bb-route)
+        middle-routes (context "/middle" cc-route dd-route)
+        right-routes (context "/right" ee-route ff-route)
+        handler (-> (routes left-routes middle-routes right-routes) routes->handler)]
+    (testing "Routes without middleware applied"
+      (is (= (:body (handler {:uri "/left/aa" :request-method :get})) "aa!"))
+      (is (= (:body (handler {:uri "/left/bb" :request-method :post})) "bb!"))
+      (is (= (:body (handler {:uri "/middle/cc" :request-method :get})) "cc!"))
+      (is (= (:body (handler {:uri "/middle/dd" :request-method :delete})) "dd!"))
+      (is (= (:body (handler {:uri "/right/ee" :request-method :get})) "ee!"))
+      (is (= (:body (handler {:uri "/right/ff" :request-method :delete})) "ff!")))
+    (testing "Routes but now with middleware applied"
+      (let [wrapped-bb-route (-> bb-route (wrap-routes bb-wrapper-middleware))
+            left-routes (-> (context "/left" aa-route wrapped-bb-route)
+                            (wrap-routes inner-middleware)
+                            (wrap-routes outer-middleware))
+            middle-routes (context "/middle" cc-route dd-route)
+            right-routes (-> (context "/right" ee-route ff-route) (wrap-routes outer-middleware))
+            handler (-> (routes left-routes middle-routes right-routes) routes->handler)]
+        (is (= (:body (handler {:uri "/left/aa" :request-method :get})) "outer-inner-aa!"))
+        (is (= (:body (handler {:uri "/left/bb" :request-method :post})) "outer-inner-bb-wrapper-bb!"))
+        (is (= (:body (handler {:uri "/middle/cc" :request-method :get})) "cc!"))
+        (is (= (:body (handler {:uri "/middle/dd" :request-method :delete})) "dd!"))
+        (is (= (:body (handler {:uri "/right/ee" :request-method :get})) "outer-ee!"))
+        (is (= (:body (handler {:uri "/right/ff" :request-method :delete})) "outer-ff!"))))))

@@ -271,6 +271,21 @@
   [method pattern bindings body]
   `[~pattern {~method (handler-fn* ~bindings ~body)}])
 
+(defn wrap-routes*
+  "Help function, used by compojure-like wrap-routes function to wrap leaf handlers
+  in the bidi route with the middleware"
+  [loc middleware]
+  (let [node (zip/node loc)
+        loc (cond
+              (fn? node) (zip/replace loc (middleware node))
+              (map? node) (zip/replace
+                           loc
+                           (reduce-kv (fn [m k v] (assoc m k (middleware v))) {} node))
+              :else loc)]
+    (if (zip/end? loc)
+      loc
+      (wrap-routes* (zip/next loc) middleware))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Public - core functions
 
@@ -302,7 +317,18 @@
                :match-context match-context))))))
 
 (schema/defn ^:always-validate
-routes :- bidi-schema/RoutePair
+  wrap-routes :- bidi-schema/RoutePair
+  "Wraps middleware around the handlers at every leaf in the route in a manner
+  analagous to compojure's wrap-routes function"
+  [routes :- bidi-schema/RoutePair
+   middleware :- (schema/pred fn?)]
+  (-> routes
+      zip/vector-zip
+      (wrap-routes* middleware)
+      zip/root))
+
+(schema/defn ^:always-validate
+  routes :- bidi-schema/RoutePair
   "Combines multiple bidi routes into a single data structure; this is largely
   just a convenience function for grouping several routes together as a single
   object that can be passed around."
@@ -310,7 +336,7 @@ routes :- bidi-schema/RoutePair
   ["" (vec routes)])
 
 (schema/defn ^:always-validate
-context :- bidi-schema/RoutePair
+  context :- bidi-schema/RoutePair
   "Combines multiple bidi routes together into a single data structure, but nests
   them all under the given url-prefix.  This is similar to compojure's `context`
   macro, but does not accept a binding form.  You can still destructure variables
