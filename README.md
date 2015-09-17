@@ -47,6 +47,17 @@ Notable differences from compojure above:
 
 Other than those differences, the API should be very close to compojure's.
 
+You can apply a Ring middlware to all the handlers at the leaves of a route using ```wrap-routes```, which has behaviour analagous to its counterpart in compojure. Multiple middlewares can be applied to the same routes, with those applied later wrapped around those applied earlier. This allows you to create multiple routes wrapped with different middleware yet still combine them into one overarching route that can be introspected.
+
+```clj
+(let [my-routes ...
+      my-singly-wrapped-routes (wrap-routes my-routes inner-middleware)
+      my-doubly-wrapped-routes (wrap-routes my-singly-wrapped-routes outer-middleware)
+      my-other-routes ...
+      my-wrapped-other-routes (wrap-routes my-other-routes other-middleware)
+      my-combined-routes (routes my-doubly-wrapped-routes my-wrapped-other-routes)]
+```
+
 ## What does Comidi do?
 
 Comidi provides some macros and functions that are intended to feel very similar
