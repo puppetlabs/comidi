@@ -4,6 +4,10 @@
 Added mechanism for wrapping intermediate comidi routes with middleware.
 Added support for "true/false" Bidi patterns.
 
+## 0.2.2
+
+Same content as 0.3.0 - please prefer that version
+
 ## 0.2.1
 
 Added 'resources' route utility fn.
