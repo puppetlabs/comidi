@@ -3,7 +3,8 @@
            [puppetlabs.comidi :as comidi :refer :all]
            [schema.test :as schema-test]
            [schema.core :as schema]
-           [clojure.zip :as zip]))
+           [clojure.zip :as zip]
+           [bidi.bidi :as bidi]))
 
 (use-fixtures :once schema-test/validate-schemas)
 
@@ -359,31 +360,38 @@
         dd-route (DELETE "/dd" request "dd!")
         ee-route (GET "/ee" request "ee!")
         ff-route (ANY "/ff" request "ff!")
+        gh-route (ANY (bidi/alts "/gg" "/hh") request "gg-or-hh!")
         left-routes (context "/left" aa-route bb-route)
         middle-routes (context "/middle" cc-route dd-route)
         right-routes (context "/right" ee-route ff-route)
-        handler (-> (routes left-routes middle-routes right-routes) routes->handler)]
+        alternate-routes ["/alts" [gh-route]]
+        handler (-> (routes left-routes middle-routes right-routes alternate-routes) routes->handler)]
     (testing "Routes without middleware applied"
       (is (= (:body (handler {:uri "/left/aa" :request-method :get})) "aa!"))
       (is (= (:body (handler {:uri "/left/bb" :request-method :post})) "bb!"))
       (is (= (:body (handler {:uri "/middle/cc" :request-method :get})) "cc!"))
       (is (= (:body (handler {:uri "/middle/dd" :request-method :delete})) "dd!"))
       (is (= (:body (handler {:uri "/right/ee" :request-method :get})) "ee!"))
-      (is (= (:body (handler {:uri "/right/ff" :request-method :delete})) "ff!")))
+      (is (= (:body (handler {:uri "/right/ff" :request-method :delete})) "ff!"))
+      (is (= (:body (handler {:uri "/alts/gg" :request-method :put})) "gg-or-hh!"))
+      (is (= (:body (handler {:uri "/alts/hh" :request-method :post})) "gg-or-hh!"))
+      (is (= (:body (handler {:uri "/alts/ii" :request-method :post})) nil)))
     (testing "Routes but now with middleware applied"
       (let [wrapped-bb-route (-> bb-route (wrap-routes bb-wrapper-middleware))
             left-routes (-> (context "/left" aa-route wrapped-bb-route)
                             (wrap-routes inner-middleware)
                             (wrap-routes outer-middleware))
-            middle-routes (context "/middle" cc-route dd-route)
-            right-routes (-> (context "/right" ee-route ff-route) (wrap-routes outer-middleware))
-            handler (-> (routes left-routes middle-routes right-routes) routes->handler)]
+            right-routes (-> right-routes (wrap-routes outer-middleware))
+            alternate-routes (-> alternate-routes (wrap-routes inner-middleware) (wrap-routes outer-middleware))
+            handler (-> (routes left-routes middle-routes right-routes alternate-routes) routes->handler)]
         (is (= (:body (handler {:uri "/left/aa" :request-method :get})) "outer-inner-aa!"))
         (is (= (:body (handler {:uri "/left/bb" :request-method :post})) "outer-inner-bb-wrapper-bb!"))
         (is (= (:body (handler {:uri "/middle/cc" :request-method :get})) "cc!"))
         (is (= (:body (handler {:uri "/middle/dd" :request-method :delete})) "dd!"))
         (is (= (:body (handler {:uri "/right/ee" :request-method :get})) "outer-ee!"))
-        (is (= (:body (handler {:uri "/right/ff" :request-method :delete})) "outer-ff!"))))))
+        (is (= (:body (handler {:uri "/right/ff" :request-method :delete})) "outer-ff!"))
+        (is (= (:body (handler {:uri "/alts/gg" :request-method :delete})) "outer-inner-gg-or-hh!"))
+        (is (= (:body (handler {:uri "/alts/hh" :request-method :delete})) "outer-inner-gg-or-hh!"))))))
 
 (deftest destructuring-test
   (testing "Compojure-style destructuring works as expected"

@@ -276,20 +276,37 @@
   [method pattern bindings body]
   `[~pattern {~method (handler-fn* ~bindings ~body)}])
 
+(defn route-tree-zip
+  "Returns a zipper for a bidi route tree i.e. for an arbitrarily nested structure of
+  `bidi.schema/RoutePair`s"
+  [root]
+  (zip/zipper
+    (fn [[_ matched]]
+      (or (vector? matched) (map? matched)))
+
+    (fn [[_ matched]]
+      (seq matched))
+
+    (fn [[pattern matched :as node] children]
+      (with-meta
+        [pattern (into (if (vector? matched) [] {}) children)]
+        (meta node)))
+
+    root))
+
 (defn wrap-routes*
   "Help function, used by compojure-like wrap-routes function to wrap leaf handlers
   in the bidi route with the middleware"
   [loc middleware]
-  (let [node (zip/node loc)
-        loc (cond
-              (fn? node) (zip/replace loc (middleware node))
-              (map? node) (zip/replace
-                           loc
-                           (reduce-kv (fn [m k v] (assoc m k (middleware v))) {} node))
-              :else loc)]
-    (if (zip/end? loc)
-      loc
-      (wrap-routes* (zip/next loc) middleware))))
+  (if (zip/end? loc)
+    loc
+    (let [loc (if (zip/branch? loc)                         ; we only want modify the leaf nodes
+                loc
+                (let [[pattern matched] (zip/node loc)]
+                  (if (fn? matched)
+                    (zip/replace loc [pattern (middleware matched)])
+                    loc)))]
+      (recur (zip/next loc) middleware))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Public - core functions
@@ -328,7 +345,7 @@
   [routes :- bidi-schema/RoutePair
    middleware :- (schema/pred fn?)]
   (-> routes
-      zip/vector-zip
+      route-tree-zip
       (wrap-routes* middleware)
       zip/root))
 
