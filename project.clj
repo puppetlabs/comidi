@@ -4,15 +4,16 @@
 
   :pedantic? :abort
 
-  :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/tools.reader "0.8.9"]
-                 [clj-time "0.7.0"]
+  :dependencies [[org.clojure/clojure "1.7.0"]
+                 
+                 ;; begin version conflict resolution dependencies
+                 [clj-time "0.10.0"]
+                 ;; end version conflict resolution dependencies
 
-                 [ring/ring-core "1.3.2"]
-                 [commons-io "2.4"]
-                 [bidi "1.21.0" :exclusions [org.clojure/clojurescript]]
-                 [compojure "1.3.3"]
-                 [prismatic/schema "0.4.3"]
+                 [bidi "1.23.1" :exclusions [org.clojure/clojurescript]]
+                 [compojure "1.4.0"]
+                 [prismatic/schema "1.0.4"]
+
                  [puppetlabs/kitchensink "1.1.0"]]
 
   :deploy-repositories [["releases" {:url "https://clojars.org/repo"
