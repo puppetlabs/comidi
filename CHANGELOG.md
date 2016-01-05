@@ -1,3 +1,9 @@
+## 0.3.1
+
+This is a minor bugfix release.
+
+* [TK-297](https://tickets.puppetlabs.com/browse/TK-297) : Fix bug where `wrap-routes` didn't work properly with certain kinds of bidi route trees - Michal Růžička <michal.ruza@gmail.com> (159ef0f)
+* Update dependencies on clojure, bidi, compojure, schema
 
 ## 0.3.0
 
