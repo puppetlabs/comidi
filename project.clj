@@ -4,15 +4,21 @@
 
   :pedantic? :abort
 
-  :dependencies [[org.clojure/clojure "1.8.0"]
+  :min-lein-version "2.7.1"
 
-                 [bidi "2.0.12" :exclusions [org.clojure/clojurescript]]
-                 [compojure "1.5.0"]
-                 [prismatic/schema "1.1.3"]
+  :parent-project {:coords [puppetlabs/clj-parent "0.4.3"]
+                   :inherit [:managed-dependencies]}
 
-                 [puppetlabs/kitchensink "2.1.0"]]
+  :dependencies [[org.clojure/clojure]
+
+                 [bidi "2.0.12"]
+                 [compojure]
+                 [prismatic/schema]
+                 [puppetlabs/kitchensink]]
 
   :deploy-repositories [["releases" {:url "https://clojars.org/repo"
                                      :username :env/clojars_jenkins_username
                                      :password :env/clojars_jenkins_password
-                                     :sign-releases false}]])
+                                     :sign-releases false}]]
+
+  :plugins  [[lein-parent "0.3.1"]])
