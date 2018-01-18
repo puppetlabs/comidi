@@ -1,3 +1,9 @@
+## 0.3.2
+
+This is a minor bugfix release.
+
+* [TK-464](https://tickets.puppetlabs.com/browse/TK-464) : Fix bug with URL parsing by updating bidi to 2.1.3. Also update clj-parent.
+
 ## 0.3.1
 
 This is a minor bugfix release.
