@@ -6,12 +6,12 @@
 
   :min-lein-version "2.7.1"
 
-  :parent-project {:coords [puppetlabs/clj-parent "0.4.3"]
+  :parent-project {:coords [puppetlabs/clj-parent "1.6.0"]
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
 
-                 [bidi "2.0.12"]
+                 [bidi "2.1.3"]
                  [compojure]
                  [prismatic/schema]
                  [puppetlabs/kitchensink]]

@@ -167,11 +167,7 @@
     (update-in route-info [:path] conj "!")
 
     (sequential? pattern)
-    (if-let [next (first pattern)]
-      (update-route-info*
-        (update-in route-info [:path] conj next)
-        (rest pattern))
-      route-info)
+    (update-in route-info [:path] into pattern)
 
     :else
     (update-in route-info [:path] conj pattern)))
