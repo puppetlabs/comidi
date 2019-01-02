@@ -1,5 +1,5 @@
 (ns puppetlabs.comidi-test
-  (require [clojure.test :refer :all]
+  (:require [clojure.test :refer :all]
            [puppetlabs.comidi :as comidi :refer :all]
            [schema.test :as schema-test]
            [schema.core :as schema]
