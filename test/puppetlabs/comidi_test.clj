@@ -1,10 +1,10 @@
 (ns puppetlabs.comidi-test
   (:require [clojure.test :refer :all]
-           [puppetlabs.comidi :as comidi :refer :all]
-           [schema.test :as schema-test]
-           [schema.core :as schema]
-           [clojure.zip :as zip]
-           [bidi.bidi :as bidi]))
+            [puppetlabs.comidi :as comidi :refer :all]
+            [schema.test :as schema-test]
+            [schema.core :as schema]
+            [clojure.zip :as zip]
+            [bidi.bidi :as bidi]))
 
 (use-fixtures :once schema-test/validate-schemas)
 
