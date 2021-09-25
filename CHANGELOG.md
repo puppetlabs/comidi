@@ -1,3 +1,10 @@
+## 0.3.3
+
+This release does not include any new content.
+
+* Test against Java 8 and Java 11
+* Update clj-parent to 4.8.1 (latest)
+
 ## 0.3.2
 
 This is a minor bugfix release.
