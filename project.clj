@@ -4,9 +4,9 @@
 
   :pedantic? :abort
 
-  :min-lein-version "2.7.1"
+  :min-lein-version "2.9.1"
 
-  :parent-project {:coords [puppetlabs/clj-parent "1.6.0"]
+  :parent-project {:coords [puppetlabs/clj-parent "4.8.1"]
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
@@ -21,4 +21,4 @@
                                      :password :env/clojars_jenkins_password
                                      :sign-releases false}]]
 
-  :plugins  [[lein-parent "0.3.1"]])
+  :plugins  [[lein-parent "0.3.7"]])
