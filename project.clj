@@ -1,4 +1,4 @@
-(defproject puppetlabs/comidi "1.0.0"
+(defproject puppetlabs/comidi "1.0.1-SNAPSHOT"
   :description "Puppet Labs utility functions and compojure-like wrappers for use with the bidi web routing library"
   :url "https://github.com/puppetlabs/comidi"
 
