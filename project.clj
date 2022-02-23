@@ -1,4 +1,4 @@
-(defproject puppetlabs/comidi "0.3.4-SNAPSHOT"
+(defproject puppetlabs/comidi "1.0.0-SNAPSHOT"
   :description "Puppet Labs utility functions and compojure-like wrappers for use with the bidi web routing library"
   :url "https://github.com/puppetlabs/comidi"
 
@@ -6,12 +6,12 @@
 
   :min-lein-version "2.9.1"
 
-  :parent-project {:coords [puppetlabs/clj-parent "4.9.1"]
+  :parent-project {:coords [puppetlabs/clj-parent "4.9.4"]
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
 
-                 [bidi "2.1.3"]
+                 [bidi]
                  [compojure]
                  [prismatic/schema]
                  [puppetlabs/kitchensink]]

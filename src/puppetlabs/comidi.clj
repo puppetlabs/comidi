@@ -398,6 +398,10 @@
   [pattern bindings & body]
   (route-with-method* :delete pattern bindings body))
 
+(defmacro PATCH
+  [pattern bindings & body]
+  (route-with-method* :patch pattern bindings body))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public - pre-built routes
 
