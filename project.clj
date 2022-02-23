@@ -11,7 +11,7 @@
 
   :dependencies [[org.clojure/clojure]
 
-                 [bidi "2.1.3"]
+                 [bidi]
                  [compojure]
                  [prismatic/schema]
                  [puppetlabs/kitchensink]]
