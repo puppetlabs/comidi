@@ -1,3 +1,10 @@
+## 1.0.0
+
+This is a feature release
+ - Version as 1.0, has been in production for years
+ - Add PATCH macro
+ - Bump bidi dependency to 2.1.6
+
 ## 0.3.3
 
 This release does not include any new content.
